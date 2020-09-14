@@ -1,3 +1,12 @@
 /data/
 /venv/
 /figures/
+/.idea/.gitignore
+/.idea/Flicker.iml
+/.idea/misc.xml
+/.idea/modules.xml
+/.idea/inspectionProfiles/profiles_settings.xml
+/.idea/inspectionProfiles/Project_Default.xml
+/scrap_paper.py
+/timo_scripts/screening_display.zip
+/.idea/vcs.xml
