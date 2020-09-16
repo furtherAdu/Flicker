@@ -21,12 +21,12 @@ else:
 def plot_SSVEP_ratings_corr(subs_dict):
     # setting up figure
     fig, axs = plt.subplots(2, 1, figsize=(5, 10), sharex=True)
-    fig.subplots_adjust(hspace=.2, bottom=.4, top=.9)
+    fig.subplots_adjust(hspace=.2, bottom=.4, top=.9, left=.2)
     fig.suptitle('SSVEP and rating intensity correlation')
     axs = axs.ravel()
 
-    axs[0].set_title('Pearson\'s r')
-    axs[1].set_title('p - value')
+    axs[0].set_ylabel('Pearson\'s r')
+    axs[1].set_ylabel('p - value')
 
     # allocating array to hold test results
     SSVEP_ratings_corr = np.ones((len(sub_IDs), len(questions), 2)) * np.nan  # (subjects, ratings, r/p)
@@ -76,12 +76,12 @@ def plot_flicker_freq_ratings_corr(subs_dict):
     """
     # setting up figure
     fig, axs = plt.subplots(2, 1, figsize=(5, 10), sharex=True)
-    fig.subplots_adjust(hspace=.2, bottom=.4, top=.9)
+    fig.subplots_adjust(hspace=.2, bottom=.4, top=.9, left=.2)
     fig.suptitle('Flicker frequency and rating intensity correlation')
     axs = axs.ravel()
 
-    axs[0].set_title('Pearson\'s r')
-    axs[1].set_title('p - value')
+    axs[0].set_ylabel('Pearson\'s r')
+    axs[1].set_ylabel('p - value')
 
     # allocating array to hold test results
     flicker_freq_ratings_corr = np.ones((len(sub_IDs), len(questions), 2)) * np.nan  # (subjects, ratings, r/p)
@@ -130,12 +130,12 @@ def plot_alpha_power_ratings_corr(subs_dict):
     """
     # setting up figure
     fig, axs = plt.subplots(2, 1, figsize=(5, 10), sharex=True)
-    fig.subplots_adjust(hspace=.2, bottom=.4, top=.9)
+    fig.subplots_adjust(hspace=.2, bottom=.4, top=.9, left=.2)
     # fig.suptitle('Resting alpha power and rating intensity correlation')
     axs = axs.ravel()
 
-    axs[0].set_title('Pearson\'s r')
-    axs[1].set_title('p - value')
+    axs[0].set_ylabel('Pearson\'s r')
+    axs[1].set_ylabel('p - value')
 
     # allocating array to hold test results
     alpha_ratings_corr = np.ones((len(sub_IDs), len(questions), 2)) * np.nan  # (subjects, ratings, r/p)
@@ -188,12 +188,12 @@ def plot_fa_distance_ratings_corr(subs_dict):
 
     # setting up figure
     fig, axs = plt.subplots(2, 1, figsize=(5, 10), sharex=True)
-    fig.subplots_adjust(hspace=.2, bottom=.4, top=.9)
+    fig.subplots_adjust(hspace=.2, bottom=.4, top=.9, left=.2)
     fig.suptitle('Flicker-alpha distance and rating intensity correlation')
     axs = axs.ravel()
 
-    axs[0].set_title('Pearson\'s r')
-    axs[1].set_title('p - value')
+    axs[0].set_ylabel('Pearson\'s r')
+    axs[1].set_ylabel('p - value')
 
     # allocating array to hold test results
     fa_distance_ratings_corr = np.ones((len(sub_IDs), len(questions), 2)) * np.nan  # (subjects, ratings, r/p)
@@ -247,12 +247,12 @@ def plot_sa_distance_ratings_corr(subs_dict):
     """
     # setting up figure
     fig, axs = plt.subplots(2, 1, figsize=(5, 10), sharex=True)
-    fig.subplots_adjust(hspace=.2, bottom=.4, top=.9)
+    fig.subplots_adjust(hspace=.2, bottom=.4, top=.9, left=.2)
     fig.suptitle('SSVEP-alpha distance and rating intensity correlation')
     axs = axs.ravel()
 
-    axs[0].set_title('Pearson\'s r')
-    axs[1].set_title('p - value')
+    axs[0].set_ylabel('Pearson\'s r')
+    axs[1].set_ylabel('p - value')
 
     # allocating array to hold test results
     SSVEP_ratings_corr = np.ones((len(sub_IDs), len(questions), 2)) * np.nan  # (subjects, ratings, r/p)
@@ -306,12 +306,12 @@ def plot_fs_distance_ratings_corr(subs_dict):
     """
     # setting up figure
     fig, axs = plt.subplots(2, 1, figsize=(5, 10), sharex=True)
-    fig.subplots_adjust(hspace=.2, bottom=.4, top=.9)
+    fig.subplots_adjust(hspace=.2, bottom=.4, top=.9, left=.2)
     fig.suptitle('Flicker-SSVEP distance and rating intensity correlation')
     axs = axs.ravel()
 
-    axs[0].set_title('Pearson\'s r')
-    axs[1].set_title('p - value')
+    axs[0].set_ylabel('Pearson\'s r')
+    axs[1].set_ylabel('p - value')
 
     # allocating array to hold test results
     fs_distance_ratings_corr = np.ones((len(sub_IDs), len(questions), 2)) * np.nan  # (subjects, ratings, r/p)

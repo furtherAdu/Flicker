@@ -7,7 +7,7 @@
 from utils.mne_funcs import read_eeg
 from utils.st_adjudication_funcs import discretize_into_events, calc_psd
 from utils.setup_info import ID_to_name, event_dict, len_events, hcutoff, lcutoff, op_channels, \
-    bdf_home, sub_IDs, ds_hz, fft_step, test_freqs, SSVEP_band
+    bdf_home, sub_IDs, ds_hz, fft_step, test_freqs, SSVEP_band, flick_on_bounds
 from utils.helper_funcs import save_obj, load_obj
 import numpy as np
 import matplotlib.pyplot as plt
@@ -39,7 +39,7 @@ def calc_SSVEP(subs_dict, SSVEP_band=(5, 15)):
         # flicker_psd.shape == (epoch x channel x frequencies)
         flicker_psd, flicker_psd_freqs = calc_psd(flicker_epochs, psd_channels=op_channels, lcutoff=lcutoff,
                                                   hcutoff=hcutoff, fft_step=fft_step, ds_hz=ds_hz,
-                                                  calc_method='multitaper')
+                                                  calc_method='multitaper', epoch_length=flick_on_bounds[1])
 
          # TODO: interpolation to freqs == np.arange(2,45+.1,.1)
 

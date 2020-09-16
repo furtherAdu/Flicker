@@ -40,7 +40,7 @@ def plot_rating_dispersion(subs_dict):
     # setting up figure
     fig, ax = plt.subplots()
     fig.subplots_adjust(bottom=.35, top=.92)
-    # fig.suptitle('Post-flicker block ratings, all subjects')
+    ax.set_ylabel('Post-Epoch Questionnaire ratings')
 
     ax.boxplot(rating_dispersion.stack(collapsed=('subject', 'test_freq', 'run')))
 
@@ -51,4 +51,10 @@ def plot_rating_dispersion(subs_dict):
     plt.show()
     fig.savefig(f'figures/rating_dispersion.png')
 
-plot_rating_dispersion(subs_dict)
+    return rating_dispersion
+
+rating_dispersion = plot_rating_dispersion(subs_dict)
+
+# get median and IQR
+med = rating_dispersion.groupby('question').median(['subject', 'run', 'test_freq'])
+iqr = rating_dispersion.stack(collapsed=('subject', 'test_freq', 'run')).quantile([.25, .75], dim='collapsed')

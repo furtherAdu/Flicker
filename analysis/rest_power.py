@@ -1,7 +1,7 @@
 from utils.mne_funcs import read_eeg
 from utils.st_adjudication_funcs import discretize_into_events, calc_psd
 from utils.setup_info import ID_to_name, event_dict, len_events, hcutoff, lcutoff, op_channels, \
-    bdf_home, sub_IDs, ds_hz, fft_step, test_freqs
+    bdf_home, sub_IDs, ds_hz, fft_step, test_freqs, rest_bounds
 from utils.helper_funcs import save_obj, load_obj
 import numpy as np
 import os

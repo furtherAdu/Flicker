@@ -282,14 +282,17 @@ def identify_resting_alpha(epochs, psd_channels, sub_ID, plot=False, calc_method
     return psds_b, psds_a, freqs_a, r_alpha, calc_method
 
 
-def calc_psd(epochs, psd_channels, lcutoff=2, hcutoff=45, fft_step=.25, ds_hz=1000, calc_method='welch'):
+def calc_psd(epochs, psd_channels, lcutoff=2, hcutoff=45, fft_step=.25, ds_hz=1000, calc_method='welch',
+             epoch_length=None):
+
     """Calculates power spectral density
 
+    :param epoch_length: (int) seconds after start of epochs to use to calculate PSD
     :param fft_step: frequency step over which to calculate PSD
     :param lcutoff:  high pass threshold
     :param hcutoff: low pass threshold
     :param epochs: mne Epochs object with the events
-    :param psd_channels: channels over which to calcualte power
+    :param psd_channels: channels over which to calculate power
     :return: the PSD over each event, frequencies
     """
 
@@ -306,7 +309,7 @@ def calc_psd(epochs, psd_channels, lcutoff=2, hcutoff=45, fft_step=.25, ds_hz=10
                              use_fft=True, return_itc=False, average=False,
                              decim=2)
 
-        tfr.crop(0, flick_on_bounds[1])  # define epochs around events (in s) #
+        tfr.crop(0, epoch_length)  # define epochs around events (in s) #TODO: fix for rest epochs
 
         # baseline = [flick_on_bounds[0], 0]  # baseline interval (in s)
         # tfr.apply_baseline(baseline, mode="mean")  # subtract mean of first 5 seconds

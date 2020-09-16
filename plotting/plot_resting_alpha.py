@@ -63,10 +63,11 @@ def plot_ERD(subs_dict, save=True):
         diff = log_after - log_before
         alpha = freqs[np.argmin(diff)]
 
-        axs2[i].plot(freqs, diff, c=sub_colors[ID])
-        axs2[i].axvline(alpha, c='k', label=r'resting $\alpha$')
+        axs2[i].plot(freqs, diff, c=sub_colors[ID], label=ID)
+        axs2[i].axvline(alpha, c='k', label=r'$\alpha$ = ' + str(alpha.round(2)))
         axs2[i].set_xlabel('Frequency (Hz)')
-        axs2[i].set_title(name_to_ID[sub] + r', $\alpha$ = ' + str(alpha.round(2)))
+        # axs2[i].set_title(name_to_ID[sub] + r', $\alpha$ = ' + str(alpha.round(2)))
+        axs2[i].legend()
 
         if i == 0:
             axs2[i].set_ylabel('Δ Log-Power (V^2 / Hz)')

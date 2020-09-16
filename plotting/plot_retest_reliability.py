@@ -25,8 +25,8 @@ def plot_retest_reliability(subs_dict):
     # fig.suptitle('Flicker frequency retest reliability')
     axs = axs.ravel()
 
-    axs[0].set_title('Pearson\'s r')
-    axs[1].set_title('p - value')
+    axs[0].set_ylabel('Pearson\'s r')
+    axs[1].set_ylabel('p - value')
 
     # calculating and plotting retest reliability in loop
     for sub_ID in sub_IDs:
@@ -56,5 +56,10 @@ def plot_retest_reliability(subs_dict):
     plt.show()
     fig.savefig('figures/freq_retest_reliability.png')
 
+    return retest_reliability
 
-plot_retest_reliability(subs_dict)
+
+retest_reliability = plot_retest_reliability(subs_dict)
+
+CV = retest_reliability.loc[dict(statistic='r')].std(dim='frequency') / \
+     retest_reliability.loc[dict(statistic='r')].mean(dim='frequency')  # calculating coefficient of variation
