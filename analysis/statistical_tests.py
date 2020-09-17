@@ -1,7 +1,7 @@
 from utils.setup_info import ID_to_name, questions, sub_IDs, test_freqs, runs
 from utils.helper_funcs import load_obj
 from analysis.secondary_power_features import calc_secondary_power_features
-from pingouin import rm_anova, normality, sphericity, friedman
+from pingouin import rm_anova, normality, sphericity, pairwise_ttests
 import pandas as pd
 import xarray as xr
 import numpy as np
@@ -11,6 +11,8 @@ pd.options.mode.chained_assignment = None  # TODO: solves "SettingWithCopyWarnin
 
 
 def compile_ratings(subs_dict):
+    print('\n', 'Compiling subject ratings' )
+
     # allocating xarray for response, (subjects, test frequency, run, ratings)
     xr_ratings = np.ones((len(sub_IDs), len(test_freqs), len(runs), len(questions))) * np.nan
     xr_ratings = xr.DataArray(xr_ratings,
@@ -93,7 +95,11 @@ def calc_rm_anova(ds):
     :return:
     """
 
+    print('\n', 'Calculating repeated measures ANOVAs' )
+    stats_dict = dict()  # master dict to contain all stats results
+
     # # calculating stats for alpha power
+    alpha_dict = dict()  # dictionary for dv=alpha_power tests
     alpha_power = ds['alpha_power'].to_dataframe()
     alpha_power.reset_index(inplace=True)
 
@@ -107,8 +113,10 @@ def calc_rm_anova(ds):
     print('\nAlpha power')
     if bool(ap_sphericity[0]):
         print(f'data are spherical. Use uncorrected p-values.')
+        alpha_dict.update(dict(spherical=True))
     else:
         print(f'data are not spherical. Use GG-corrected p-values.')
+        alpha_dict.update(dict(spherical=False))
 
     if bool(ap_normality.product(axis=0)['normal']):
         print(f'data are normal.')
@@ -116,15 +124,29 @@ def calc_rm_anova(ds):
                             detailed=True)
         print(ap_anova)
 
+        alpha_dict.update(dict(normal=True))
+        alpha_dict.update(dict(anova=ap_anova))
+
     else:  # calculate rank over all observations
         print(f'data do not meet RM ANOVA assumptions. Performing RM ANOVA with ranked observations.')
         run_anova, flicker_freq_anova, rf_anova = \
             rm_aligned_rank_transform(df=ds['alpha_power'].to_dataframe(), DV=['alpha_power'],
                                       IV=['run', 'flicker_freq'])
-        print(pd.concat([run_anova[0:1], flicker_freq_anova[0:1], rf_anova[2:3]]))  # omitting error rows
+        ranked_anova = pd.concat([run_anova[0:1], flicker_freq_anova[0:1], rf_anova[2:3]])
+        print(ranked_anova)  # omitting error rows
+
+        alpha_dict.update(dict(normal=False))
+        alpha_dict.update(dict(anova=ranked_anova))
+
+    alpha_dict.update(dict(df=alpha_power)) # adding data to master dict
+    stats_dict.update(dict(alpha_power=alpha_dict))  # updating master stats dict with ANOVA
 
     # # calculating stats for question ratings
     for question in questions:
+
+        question_freq_dict = dict()  # dictionary for dv=ratings, IV=flicker_freq tests
+        question_rap_dict = dict()  # dictionary for dv=ratings, IV=ranked alpha_power
+
         question_rating = ds['ratings'].loc[dict(question=question)].to_dataframe()
         question_rating.reset_index(inplace=True)
 
@@ -144,7 +166,7 @@ def calc_rm_anova(ds):
         # ranking 'alpha_power'(average across runs) for each subject range(8)
         ranked_alpha = df_qa.groupby(['flicker_freq', 'subject']).mean()  # taking mean alpha power over runs
         ranked_alpha.reset_index(inplace=True)  # removing nested structure
-        ranked_alpha.alpha_power = ranked_alpha.groupby('subject')['alpha_power'].rank()  # ranking alpha
+        ranked_alpha.alpha_power = ranked_alpha.groupby('subject')['alpha_power'].rank()  # ranking alpha, 1 is lowest
 
         # updating df with ranked alpha (could probably do with a multiindex)
         for sub_ID in sub_IDs:
@@ -157,8 +179,12 @@ def calc_rm_anova(ds):
         print(f'\n"{question}"')
         if bool(question_sphericity[0]):
             print(f'data are spherical. Use uncorrected p-values.')
+            question_freq_dict.update(dict(spherical=True))
+            question_rap_dict.update(dict(spherical=True))
         else:
             print(f'data are not spherical. Use GG-corrected p-values.')
+            question_freq_dict.update(dict(spherical=False))
+            question_rap_dict.update(dict(spherical=False))
 
         if bool(question_normality.product(axis=0)['normal']):
             print(f'data are normal.')
@@ -166,29 +192,127 @@ def calc_rm_anova(ds):
                                       subject='subject', detailed=True)
             print(question_anova)
 
-            # resting alpha - rating anova
+            question_freq_dict.update(dict(normal=True))  # updating results dict for question
+            question_freq_dict.update(dict(anova=question_anova))
+
+            # iv=resting alpha, dv=rating anova
             rar_anova = rm_anova(data=df_qa, dv='ratings', within=['run', 'alpha_power'],
                                  subject='subject', detailed=True)
             print('\n', rar_anova)
+
+            question_rap_dict.update(dict(normal=True))  # updating results dict for question
+            question_rap_dict.update(dict(anova=rar_anova))
 
         else:  # calculate rank over all observations
             print(f'data do not meet RM ANOVA assumptions. Performing RM ANOVA with ranked observations.')
             run_anova, flicker_freq_anova, rf_anova = rm_aligned_rank_transform(df=ds['ratings'].loc[dict(question=question)].to_dataframe(),
                                                                                 DV='ratings',
                                                                                 IV=['run', 'flicker_freq'])
-            print(pd.concat([run_anova[0:1], flicker_freq_anova[0:1], rf_anova[2:3]]))  # omitting error rows
+            ranked_freq_anova = pd.concat([run_anova[0:1], flicker_freq_anova[0:1], rf_anova[2:3]])
+            print(ranked_freq_anova)  # omitting error rows
+
+            question_freq_dict.update(dict(normal=False))  # updating results dict for question
+            question_freq_dict.update(dict(anova=ranked_freq_anova))
 
             a_run_anova, alpha_anova, rar_anova = rm_aligned_rank_transform(df=df_qa.set_index(['subject', 'run', 'alpha_power']),
                                                                             DV='ratings',
                                                                             IV=['run', 'alpha_power'])
-            print('\n', pd.concat([a_run_anova[0:1], alpha_anova[0:1], rar_anova[2:3]]))  # omitting error rows
+
+            ranked_rap_anova = pd.concat([a_run_anova[0:1], alpha_anova[0:1], rar_anova[2:3]])
+            print('\n', ranked_rap_anova)  # omitting error rows
+
+            question_freq_dict.update(dict(normal=False))  # updating results dict for question
+            question_rap_dict.update(dict(anova=ranked_rap_anova))
+
+        question_freq_dict.update(dict(df=question_rating)) # adding data to master dict
+        question_rap_dict.update(dict(df=df_qa))
+        stats_dict.update({f'freq_{question}': question_freq_dict})  # updating master stats dict with ANOVA
+        stats_dict.update({f'rap_{question}': question_rap_dict})
 
         # TODO: (extra) calculate two-way, mixed effects RM ANOVA with within=['flicker_freq','fs_distance']
 
+    return stats_dict
+
+
+def get_sig_anovas(stats_dict, p_thresh=.05):
+    """
+    Prints and returns signficant ANOVA results
+    :param stats_dict: (nested dict) with {name of test {ANOVA results and data}}
+    :param p_thresh: (float) threshold for p-value
+    :return: (list) significant ANOVA results
+    """
+
+    print('\n', 'Calculating significant ANOVAs' )
+    sig_anovas = []  # list of all significant tests
+
+    # for all statistical tests
+    for test_key in list(stats_dict.keys()):
+        test = stats_dict[test_key]
+        spherical = test['spherical']     # determine sphericality
+        anova = test['anova']
+
+        # identify ANOVAs with significant p-value
+        if spherical:
+            pval = anova['p-unc']
+        else:
+            pval = anova['p-GG-corr']
+
+        if not anova.loc[pval < .05].empty:  # if there's a significant result
+            print('\n', test_key, '\n', anova.loc[pval < .05])  # print the result
+            sig_anovas.append({f'{test_key}':anova.loc[pval < .05]})  # add to significant results list
+
+    return sig_anovas
+
+
+def paired_tests(stats_dict, sig_anovas, p_thresh=.05, p_adjust='bonf'):
+    """
+    Calculates, prints, and returns pairwise t-tests for all significant anovas.
+    Non parametric tests are used if vast majority (>80%) of DVs across within-subject conditions aren't normal
+    Note: t-tests 'T' value
+
+    :param stats_dict: nested dict) with {name of test {ANOVA results and data}}
+    :param sig_anovas: (list) of dataframs with significant ANOVAs
+    :param p_thresh: (float) threshold for determining significance, used for multiple comparison corrections
+    :param p_adjust: (str) p-value adjustment method to use, per pingouin.pairwise_ttests
+    :return: (dict) results of pairwise test, key formatted as (anova test)_(question)_(paired_effect)
+    """
+
+    print('\n', 'Calculating pairwise t-tests for significant ANOVAs')
+    paired_tests_dict = dict()
+
+    for sig_anova in sig_anovas:  # for all signfiicant ANOVAs
+
+        test_key = list(sig_anova.keys())[0]  # sig test name
+        df = stats_dict[test_key]['df']  # corresponding sig data
+        variables = sig_anova[test_key].Source.to_list()  # DV/interactions with a sig effect
+
+        for i, variable in enumerate(variables):  # string parsing components of interactions
+            variables[i] = variable.split(' * ')
+
+        for variable in variables:  # for all DV/interactions
+
+            # checking normality across condition
+            uniq_vars = np.unique(df[variable])
+            all_normality = [normality(df['ratings'][(df[variable] == uniq_var).to_numpy().squeeze()]) for uniq_var in uniq_vars]
+            all_normality = pd.concat(all_normality)
+
+            # run paired t-tests/Wilcoxon
+            if all_normality['normal'].mean() > .8:  # if large majority of between group scores are normal
+                pwt = pairwise_ttests(parametric=True, dv='ratings', subject='subject', data=df, alpha=p_thresh,
+                                      padjust=p_adjust, within=variable)  # note within = the repeated measure
+            else:
+                pwt = pairwise_ttests(parametric=False, dv='ratings', subject='subject', data=df, alpha=p_thresh,
+                                      padjust=p_adjust, within=variable)
+
+            # key for results is (anova test)_(question)_(paired_effect)
+            paired_tests_dict.update({f'{test_key}_{"_".join(variable)}': pwt})
+
+    return paired_tests_dict
+
 
 # load the master subject dictionary
-if os.path.isfile('data/subs_dict_psds_alpha_SSVEP_rest.pkl'):
-    subs_dict = load_obj('data/subs_dict_psds_alpha_SSVEP_rest.pkl')
+if os.path.isfile('data/subs_dict_psds_alpha_SSVEP_rest_con.pkl'):
+    subs_dict = load_obj('data/subs_dict_psds_alpha_SSVEP_rest_con.pkl')
 else:
     from analysis.rest_power import rest_power
 
@@ -204,5 +328,11 @@ ds = xr.merge([xr_ratings, xr_alpha_power])  # merging xarray of ratings and alp
 # setting printing options for statistics
 pd.set_option('display.width', 1000)
 pd.set_option('display.max_columns', 500)
+pd.set_option('display.max_rows', 500)
 
-calc_rm_anova(ds)  # calculating and printing stats
+stats_dict = calc_rm_anova(ds)  # calculating and printing ANOVAs
+sig_anovas = get_sig_anovas(stats_dict, p_thresh=.05)  # getting significant ANOVAs
+paired_tests_dict = paired_tests(stats_dict, sig_anovas, p_thresh=.05, p_adjust='bonf')  # calcualting pairwise t-tests
+
+# TODO: statistical tests using PLI
+# con_measures.drop_sel(dict(chan_1='Status', chan_2='Status'))
