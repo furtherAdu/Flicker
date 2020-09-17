@@ -114,6 +114,7 @@ def discretize_into_events(processed_1020, sub_ID, events, len_events, event_dic
 
     print('discretizing file into epochs...')
 
+    # TODO: add baseline correction to all epochs, if desired
     if 'flick'.startswith(first_letters):
         epochs = mne.Epochs(processed_1020.copy(), events, event_id=event_dict, event_repeated='drop',
                             tmin=len_events['flick_on'][0], tmax=len_events['flick_on'][1])['flick']
