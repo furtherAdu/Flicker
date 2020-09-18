@@ -2,7 +2,7 @@
 
 from utils.mne_funcs import read_eeg
 from utils.st_adjudication_funcs import compile_all_session_info, discretize_into_events, identify_resting_alpha
-from utils.setup_info import ID_to_name, event_dict, len_events, hcutoff, lcutoff, fft_step, op_channels, \
+from utils.setup_info import ID_to_name, event_dict, len_events, hcutoff, lcutoff, fft_step, op_chs, \
     bdf_home, sub_IDs, ds_hz, fft_step
 from utils.helper_funcs import save_obj, load_obj
 import os
@@ -26,7 +26,7 @@ for sub_ID in sub_IDs:  # sub_IDs:
 
     # calculating power over epochs
     psds_b_pulse, psds_a_pulse, freqs, r_alpha, calc_method = \
-        identify_resting_alpha(pulse_epochs, psd_channels=op_channels, sub_ID=sub_ID, calc_method='tfr', plot=False,
+        identify_resting_alpha(pulse_epochs, psd_channels=op_chs, sub_ID=sub_ID, calc_method='tfr', plot=False,
                                fft_step=fft_step)
 
     # updating the master subject data dictionary

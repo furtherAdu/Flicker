@@ -40,7 +40,7 @@ questions = ['I felt sleepy',
 SSVEP_band = (5, 15)  # band over which to calculate SSVEP
 ref_channels = ['FCz']  # reference channel(s) to apply to EEG before analysis
 
-# raw bdf channels by 1020
+# grouped channels for preprocessing and analysis
 chs_not_1020 = ['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8', 'GSR1', 'GSR2', 'Erg1',
                 'Erg2', 'Resp', 'Plet', 'Temp']
 chs_not_1020_used = ['EXG1', 'EXG2', 'EXG3', 'EXG4', 'Erg1']
@@ -49,13 +49,16 @@ chs_in_1020 = ['Fp1', 'AF7', 'AF3', 'F1', 'F3', 'F5', 'F7', 'FT7', 'FC5', 'FC3',
                'CP5', 'CP3', 'CP1', 'P1', 'P3', 'P5', 'P7', 'P9', 'PO7', 'PO3', 'O1', 'Iz', 'Oz', 'POz', 'Pz', 'CPz',
                'Fpz', 'Fp2', 'AF8', 'AF4', 'AFz', 'Fz', 'F2', 'F4', 'F6', 'F8', 'FT8', 'FC6', 'FC4', 'FC2', 'FCz', 'Cz',
                'C2', 'C4', 'C6', 'T8', 'TP8', 'CP6', 'CP4', 'CP2', 'P2', 'P4', 'P6', 'P8', 'P10', 'PO8', 'PO4', 'O2']
-op_channels = list(filter(lambda x: x.startswith('P') or x.startswith('O'), chs_in_1020))  # occipitoparietal channels
-postprocessed_channels = ['Fp1', 'AF7', 'AF3', 'F1', 'F3', 'F5', 'F7', 'FT7', 'FC5', 'FC3', 'FC1',
-       'C1', 'C3', 'C5', 'T7', 'TP7', 'CP5', 'CP3', 'CP1', 'P1', 'P3', 'P5',
-       'P7', 'P9', 'PO7', 'PO3', 'O1', 'Iz', 'Oz', 'POz', 'Pz', 'CPz', 'Fpz',
-       'Fp2', 'AF8', 'AF4', 'AFz', 'Fz', 'F2', 'F4', 'F6', 'F8', 'FT8', 'FC6',
-       'FC4', 'FC2', 'FCz', 'Cz', 'C2', 'C4', 'C6', 'T8', 'TP8', 'CP6', 'CP4',
-       'CP2', 'P2', 'P4', 'P6', 'P8', 'P10', 'PO8', 'PO4', 'O2', 'Status']
+op_chs = list(filter(lambda x: x.startswith('P') or x.startswith('O'), chs_in_1020))  # occipitoparietal channels
+postprocessed_chs = ['Fp1', 'AF7', 'AF3', 'F1', 'F3', 'F5', 'F7', 'FT7', 'FC5', 'FC3', 'FC1',
+                     'C1', 'C3', 'C5', 'T7', 'TP7', 'CP5', 'CP3', 'CP1', 'P1', 'P3', 'P5',
+                     'P7', 'P9', 'PO7', 'PO3', 'O1', 'Iz', 'Oz', 'POz', 'Pz', 'CPz', 'Fpz',
+                     'Fp2', 'AF8', 'AF4', 'AFz', 'Fz', 'F2', 'F4', 'F6', 'F8', 'FT8', 'FC6',
+                     'FC4', 'FC2', 'FCz', 'Cz', 'C2', 'C4', 'C6', 'T8', 'TP8', 'CP6', 'CP4',
+                     'CP2', 'P2', 'P4', 'P6', 'P8', 'P10', 'PO8', 'PO4', 'O2', 'Status']
+v1_chs = ['O1', 'O2', 'Oz']
+v4_chs = ['PO7', 'PO8']
+v5_chs = ['P5', 'P6']
 
 # event_dict = dict(init_rest=1, flick_test=2, flick_on=3, flick_off=4, pulse=5)  # event dictionary for MNE epochs
 
@@ -65,8 +68,9 @@ event_dict = dict(zip(event_names, range(len(event_names))))
 
 # # creating dict of event times for each subject
 sub_times = dict()
-# flick_on times should be first sec after block start
-# pulse_on times should be first .2 sec after pulse start
+
+# Note: flick_on times should be first sec after block start
+#   pulse_on times should be first .2 sec after pulse start
 
 # Till
 Till_times = dict(init_rest_on=np.array([6]),
@@ -98,5 +102,5 @@ Adu_times = dict(init_rest_on=np.array([6]),
                  pulse_on=np.array([5450.57, 5461.56, 5471.72, 5474.52, 5484.49, 5491.51, 5495.52, 5499.80,
                                     5499.52, 5502.57, 5518.57, 5521.50, 5525.54, 5534.72, 5554.51, 5556.57]),
                  bad_channels=['F1', 'AF7', 'C3', 'C5', 'CP3', 'AF8', 'F8', 'P2'],
-                 end_rest_on=np.array([6166]))  #end at 6226, only
+                 end_rest_on=np.array([6166]))  # end at 6226, only
 sub_times.update(dict(Adu=Adu_times))
