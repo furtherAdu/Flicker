@@ -1,10 +1,10 @@
-from utils.helper_funcs import *
+from utils.helper_funcs import make_event_name_list
 import numpy as np
 import matplotlib.pyplot as plt
 
 # info about subjects and filenames
-bdf_home = 'D:/Flicker_data/'
-response_filename = 'data\EEG_Flicker_Questionnaire_Spread_8.19.20.xlsx'
+bdf_home = 'D:/Flicker_data/'  # must be updated if running analysis from other computer
+response_filename = 'data\EEG_Flicker_Questionnaire_Spread_8.19.20.xlsx'  # ditto
 sub_names = ['Till', 'Timo', 'Adu']  # subject names
 sub_IDs = ['01TN', '02TS', '03AM']  # .bdf file IDs
 cmap = plt.get_cmap('jet')
@@ -25,6 +25,7 @@ flick_block_len = 180
 flick_on_bounds = (-5, 185)
 flick_off_bounds = (0, 60)  # only ~ 1 minute, to be safe
 pulse_on_bounds = (-1, 1)
+rest_block_len = 60
 rest_bounds = (-5, 60)  # only 1 minutes, to be safe (Adu's final rest epoch clipped early, ~71s)
 session_events = ['rest', 'flick_on', 'flick_off', 'pulse_on']
 len_events = dict(zip(session_events, [rest_bounds, flick_on_bounds, flick_off_bounds, pulse_on_bounds]))

@@ -1,6 +1,7 @@
 from utils.setup_info import ID_to_name, sub_IDs, questions, sub_colors
 from utils.helper_funcs import save_obj, load_obj 
 from utils.setup_info import SSVEP_band
+from utils.st_adjudication_funcs import compile_ratings, calc_PLI_dist
 from scipy.stats import pearsonr, zscore
 import numpy as np
 import xarray as xr
@@ -13,7 +14,7 @@ if os.path.isfile('data\subs_dict_psds_alpha_SSVEP.pkl'):
 else:
     from analysis.SSVEP import calc_SSVEP
 
-    subs_dict = load_obj('data/subs_dict_psds_alpha.pkl')
+    subs_dict = load_obj('data/subs_dict.pkl')
     subs_dict = calc_SSVEP(subs_dict, SSVEP_band)
     save_obj(subs_dict, 'data\subs_dict_psds_alpha_SSVEP.pkl')
 
@@ -357,6 +358,59 @@ def plot_fs_distance_ratings_corr(subs_dict):
     fig.savefig(f'figures/rating_corr/fs_distance_rating_corr.png')
 
 
+def plot_PLI_distance_ratings_corr(pli_dist, xr_ratings):
+    """
+    Plots correlation between ratings and a PLI distance measure, per subject
+    :param pli_dist: (Series) the PLI distance measure, index (flicker_freq, runs, subject)
+    :param xr_ratings: (xarray DataArray)
+    :return: None
+    """
+    # setting up figure
+    fig, axs = plt.subplots(2, 1, figsize=(5, 10), sharex=True)
+    fig.subplots_adjust(hspace=.2, bottom=.4, top=.9, left=.2)
+    # fig.suptitle('PLI distance (rest vs. flicker)')
+
+    # allocating array to hold test results
+    pli_distance_ratings_corr = np.ones((len(sub_IDs), len(questions), 2)) * np.nan  # (subjects, ratings, r/p)
+    pli_distance_ratings_corr = xr.DataArray(pli_distance_ratings_corr,
+                                             coords=dict(subject=sub_IDs, question=questions, statistic=['r', 'p']),
+                                             dims=['subject', 'question', 'statistic'])
+
+    # for every calculated distance feature
+    axs[0].set_ylabel('Pearson\'s r')
+    axs[1].set_ylabel('p - value')
+
+    # calculate correlation for every (question x subject)
+    for sub_ID in xr_ratings.subject.data:
+        for question in xr_ratings.question.data:
+
+            # collapsing over run and flicker_freq
+            r, p = pearsonr(xr_ratings.loc[dict(question=question, subject=sub_ID)].data.ravel(),
+                            pli_dist.loc[(xr_ratings.flicker_freq.data, xr_ratings.runs.data, sub_ID)])
+
+            # save in xarray
+            pli_distance_ratings_corr.loc[dict(subject=sub_ID, question=question, statistic='r')] = r
+            pli_distance_ratings_corr.loc[dict(subject=sub_ID, question=question, statistic='p')] = p
+
+        # plot all subjects' r, p values in two plots (x = frequency, y = pearson statistic)
+        all_r = pli_distance_ratings_corr.loc[dict(subject=sub_ID, statistic='r')]
+        all_p = pli_distance_ratings_corr.loc[dict(subject=sub_ID, statistic='p')]
+
+        axs[0].plot(all_r, label=sub_ID, c=sub_colors[sub_ID])
+        axs[1].plot(all_p, c=sub_colors[sub_ID])
+
+    axs[1].axhline(.05, c='r', label='.05', linestyle='--')
+
+    # annotating with questions
+    for ax in axs:
+        ax.set_xticks(range(len(questions)))
+        ax.set_xticklabels(questions, rotation=60, fontdict={'horizontalalignment': 'right'}, wrap=True)
+        ax.legend()
+
+    plt.show()
+    fig.savefig('figures/rating_corr/PLI_rest_flicker_dist_rating_corr.png')
+
+
 plot_SSVEP_ratings_corr(subs_dict)
 plot_flicker_freq_ratings_corr(subs_dict)
 plot_alpha_power_ratings_corr(subs_dict)
@@ -364,5 +418,21 @@ plot_alpha_power_ratings_corr(subs_dict)
 plot_sa_distance_ratings_corr(subs_dict)
 plot_fa_distance_ratings_corr(subs_dict)
 plot_fs_distance_ratings_corr(subs_dict)  # entrainment
+
+# # plotting connectivity-derived ratings
+# load the flicker and rest connectivity xarray
+try:
+    flick_con_measures = xr.load_dataarray('data\subs_con_measures_flick.nc')
+except FileNotFoundError:
+    raise Exception('Please run first run analysis/connectivity.py for flicker epochs')
+try:
+    rest_con_measures = xr.load_dataarray('data\subs_con_measures_rest.nc')
+except FileNotFoundError:
+    raise Exception('Please run first run analysis/connectivity.py for rest epochs')
+
+xr_ratings = compile_ratings(subs_dict)
+xr_ratings.name = 'ratings'
+pli_dist = calc_PLI_dist(flick_con_measures, rest_con_measures)
+plot_PLI_distance_ratings_corr(pli_dist['mean_diff'], xr_ratings)
 
 # TODO: Note, z-scoring a distance assuming gaussian receptive field of freq-dependent hallucination process

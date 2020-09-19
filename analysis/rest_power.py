@@ -1,3 +1,5 @@
+# calculates PSD at rest epochs
+
 from utils.mne_funcs import read_eeg
 from utils.st_adjudication_funcs import discretize_into_events, calc_psd
 from utils.setup_info import ID_to_name, event_dict, len_events, hcutoff, lcutoff, op_chs, \
@@ -7,13 +9,13 @@ import numpy as np
 import os
 
 # load the master subject dictionary
-if os.path.isfile('data/subs_dict_psds_alpha_SSVEP.pkl'):
-    subs_dict = load_obj('data/subs_dict_psds_alpha_SSVEP.pkl')
+if os.path.isfile('data/subs_dict.pkl'):
+    subs_dict = load_obj('data/subs_dict.pkl')
 else:
     print('running SSVEP.py')
     from analysis import SSVEP
 
-    subs_dict = load_obj('data/subs_dict_psds_alpha_SSVEP.pkl')
+    subs_dict = load_obj('data/subs_dict.pkl')
 
 
 def calc_rest_psd(subs_dict, rest_type):
@@ -60,4 +62,4 @@ def calc_rest_psd(subs_dict, rest_type):
 print('calculating rest PSD...')
 subs_dict = calc_rest_psd(subs_dict, rest_type='flicker')
 print('saving subs_dict with rest PSD data...')
-save_obj(subs_dict, 'data/subs_dict_psds_alpha_SSVEP_rest.pkl')
+save_obj(subs_dict, 'data/subs_dict.pkl')

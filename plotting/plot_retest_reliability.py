@@ -1,5 +1,5 @@
 from utils.st_adjudication_funcs import compile_all_session_info
-from utils.setup_info import ID_to_name, sub_IDs, questions, test_freqs, sub_colors
+from utils.setup_info import ID_to_name, sub_IDs, questions, test_freqs, sub_colors, runs
 from utils.helper_funcs import load_obj
 from scipy.stats import pearsonr
 import numpy as np
@@ -7,8 +7,8 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import os
 
-if os.path.isfile('data/subs_dict_psds_alpha.pkl'):
-    subs_dict = load_obj('data/subs_dict_psds_alpha.pkl')
+if os.path.isfile('data/subs_dict.pkl'):
+    subs_dict = load_obj('data/subs_dict.pkl')
 else:
     subs_dict = compile_all_session_info()
 
@@ -52,6 +52,7 @@ def plot_retest_reliability(subs_dict):
     axs[1].axhline(.05, c='r', label='.05', linestyle='--')
     for _, ax in enumerate(axs):
         ax.set_xticks(all_freq)
+        ax.set_xlabel('Flicker frequency (Hz)')
         ax.legend()
     plt.show()
     fig.savefig('figures/freq_retest_reliability.png')
@@ -61,5 +62,5 @@ def plot_retest_reliability(subs_dict):
 
 retest_reliability = plot_retest_reliability(subs_dict)
 
-CV = retest_reliability.loc[dict(statistic='r')].std(dim='frequency') / \
-     retest_reliability.loc[dict(statistic='r')].mean(dim='frequency')  # calculating coefficient of variation
+# CV = retest_reliability.loc[dict(statistic='r')].std(dim='frequency') / \
+#      retest_reliability.loc[dict(statistic='r')].mean(dim='frequency')  # calculating coefficient of variation

@@ -82,8 +82,8 @@ def plot_ERD(subs_dict, save=True):
 # load the master subject dictionary
 if os.path.isfile('data\subs_dict_psds_alpha_SSVEP.pkl'):
     subs_dict = load_obj('data\subs_dict_psds_alpha_SSVEP.pkl')
-elif os.path.isfile('data/subs_dict_psds_alpha.pkl'):
-    subs_dict = load_obj('data/subs_dict_psds_alpha.pkl')
+elif os.path.isfile('data/subs_dict.pkl'):
+    subs_dict = load_obj('data/subs_dict.pkl')
 
 plot_average_occipital_power(subs_dict)
 plot_ERD(subs_dict)

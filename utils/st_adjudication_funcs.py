@@ -6,8 +6,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mne
 import os
-
+from utils.helper_funcs import myround
+from utils.setup_info import sub_IDs, test_freqs, ID_to_name, runs, lcutoff, hcutoff, fft_step, questions, \
+    v1_chs, v4_chs, v5_chs
 from mne.time_frequency import tfr_multitaper
+import xarray as xr
+from pingouin import normality, wilcoxon, ttest
+from scipy.stats import pearsonr
 from mne.viz.utils import center_cmap
 from mne.stats import permutation_cluster_1samp_test as pcluster_test
 
@@ -90,6 +95,35 @@ def compile_all_session_info():
         subs_session_info = {**subs_session_info, **sub_dict}
 
     return subs_session_info
+
+
+def compile_ratings(subs_dict):
+    print('\n', 'Compiling subject ratings')
+
+    # allocating xarray for response, (subjects, test frequency, run, ratings)
+    xr_ratings = np.ones((len(sub_IDs), len(test_freqs), len(runs), len(questions))) * np.nan
+    xr_ratings = xr.DataArray(xr_ratings,
+                              coords=dict(subject=sub_IDs, flicker_freq=test_freqs, run=runs, question=questions),
+                              dims=['subject', 'flicker_freq', 'run', 'question'])
+
+    # calculating and rating dispersion across all subjects
+    for sub_ID in sub_IDs:
+        name = ID_to_name[sub_ID]
+        response = subs_dict[name]['response']
+
+        epoch_freqs_args = [type(x) != str for x in response['Frequency (Hz)']]  # specifying frequency epochs
+
+        # compiling responses
+        for question in questions:
+            rating = response[question].loc[epoch_freqs_args].to_numpy()
+            for i, run in enumerate(runs):
+                run_rating = rating[i * 9: (i + 1) * 9]  # 1st and 2nd half of frequencies
+                run_epoch_freqs = response['Frequency (Hz)'].loc[epoch_freqs_args][i * 9: (i + 1) * 9]
+                xr_ratings.loc[dict(subject=sub_ID, question=question,
+                                    flicker_freq=run_epoch_freqs, run=run)] = run_rating
+
+    return xr_ratings
+
 
 
 def discretize_into_events(processed_1020, sub_ID, events, len_events, event_dict, bdf_home, which='pulse',
@@ -336,3 +370,167 @@ def calc_psd(epochs, psd_channels, lcutoff=2, hcutoff=45, fft_step=.25, ds_hz=10
         freqs, psd = signal.welch(df.T, fs=ds_hz, nperseg=win)
 
     return psd, freqs
+
+
+def calc_secondary_power_features(subs_dict, bin_edge='left', lcutoff=lcutoff, hcutoff=hcutoff, fft_step=fft_step):
+    """
+    Calculates SSVEP and of alpha power in bins.
+    :param bin_edge: {'left', 'center'} bin start w.r.t. lcutoff.
+        'center' bins from [lcutoff - fft_step/2, lcutoff + fft_step/2]
+        'left' bins from [lcutoff, lcutoff + fft_step]
+    :param fft_step: resolution of bins
+    :param hcutoff: upper frequency limit to calculate power
+    :param lcutoff: lower frequency limit to calculate power
+    :param subs_dict: master subject dictionary containing PSDs of post-flicker rest and flicker epochs
+    :return:(xarray) of power data, with coords {subjects, runs, feature, and flicker frequency}
+    """
+    assert bin_edge in ['left', 'center'], f"{bin_edge} is an invalid bin edge type."
+
+    # allocating array to hold test results
+    features = ['alpha_power_during', 'alpha_power_after', 'SSVEP']
+
+    # .shape == # (subjects, flicker freqs, EEG freqs, alpha power/SSVEP, runs)
+    secondary_power_features = np.ones((len(sub_IDs), len(test_freqs), len(features),
+                                     len(runs))) * np.nan
+    secondary_power_features = xr.DataArray(secondary_power_features,
+                                         coords=dict(subject=sub_IDs, flicker_freq=test_freqs,
+                                                     run=runs, feature=features),
+                                         dims=['subject', 'flicker_freq', 'feature', 'run'])
+
+    # looping over subjects for plotting
+    for sub_ID in sub_IDs:
+        name = ID_to_name[sub_ID]
+        SSVEPs = subs_dict[name]['SSVEPs']
+        psd_bin_res = fft_step  # resolution of binned psd
+        psd_freqs = np.arange(lcutoff, hcutoff, psd_bin_res)  # the binned frequencies
+        r_alpha = myround(subs_dict[name]['r_alpha'], base=psd_bin_res)  # rounding resting alpha
+        flicker_psd_freqs = subs_dict[name]['flicker_psd_freqs']  # TODO: Note. floats represented as 2.0999999999999996
+        rest_psd_freqs = subs_dict[name]['rest_flicker_psd_freqs']
+        flicker_freqs = np.array([x for x in subs_dict[name]['response']['Frequency (Hz)'] if type(x) != str])
+
+        # channel averaging PSDs
+        ca_flicker_psd = subs_dict[name]['flicker_psd'].mean(axis=1)
+        ca_rest_psd = subs_dict[name]['rest_flicker_psd'].mean(axis=1)
+
+        if bin_edge == 'left':
+            edges = (0, 1)
+        elif bin_edge == 'center':
+            edges = (-.5, .5)
+
+        # left-edge binning and summing PSD, in bin_res resolution
+        freq_bin_args = np.array([np.argwhere((flicker_psd_freqs > x + psd_bin_res * edges[0]) * # binning
+                                              (flicker_psd_freqs < x + psd_bin_res * edges[1])).squeeze() for x in psd_freqs])
+        rest_freq_bin_args = np.array([np.argwhere((rest_psd_freqs > x + psd_bin_res * edges[0]) *
+                                                   (rest_psd_freqs < x + psd_bin_res * edges[1])).squeeze() for x in psd_freqs])
+        psd_binned = np.array([ca_flicker_psd[:, x].sum(axis=1) for x in freq_bin_args]).T  # summing over bins
+        rest_psd_binned = np.array([ca_rest_psd[:, x].sum(axis=1) for x in rest_freq_bin_args]).T
+
+        # normalize frequencies to alpha TODO: what is normalized in Koch et al. 2006?
+        # normed_flicker_psd_freqs = (psd_freqs - r_alpha).round(2)
+        # normed_SSVEPs_freq = myround(SSVEPs - r_alpha, base=psd_bin_res)
+
+        # calculating SSVEP power
+        SSVEP_psd_freqs_args = np.array([np.argwhere(myround(psd_freqs, psd_bin_res) == x).squeeze()
+                                         for x in myround(SSVEPs, base=psd_bin_res)]).squeeze()
+        SSVEP_power = [psd_binned[i, x] for i, x in enumerate(SSVEP_psd_freqs_args)]
+
+        # calculating alpha power, during and after flicker
+        alpha_psd_freqs_arg = np.argwhere(myround(psd_freqs, psd_bin_res) == r_alpha).squeeze()
+        alpha_power_during = psd_binned[:, alpha_psd_freqs_arg]  # alpha power during flicker
+        alpha_power_after = rest_psd_binned[:, alpha_psd_freqs_arg]  # alpha power after flicker
+
+        # add power to xarray
+        for i, run in enumerate(runs):
+            run_alpha_power_during = alpha_power_during[i * 9: (i + 1) * 9]  # 1st and 2nd half of frequencies
+            run_alpha_power_after = alpha_power_after[i * 9: (i + 1) * 9]  # 1st and 2nd half of frequencies
+            run_SSVEP_power = SSVEP_power[i * 9: (i + 1) * 9]
+            run_flicker_freqs = flicker_freqs[i * 9: (i + 1) * 9]
+            secondary_power_features.loc[dict(subject=sub_ID, flicker_freq=run_flicker_freqs,
+                                           run=run, feature='alpha_power_during')] = run_alpha_power_during
+            secondary_power_features.loc[dict(subject=sub_ID, flicker_freq=run_flicker_freqs,
+                                           run=run, feature='alpha_power_after')] = run_alpha_power_after
+            secondary_power_features.loc[dict(subject=sub_ID, flicker_freq=run_flicker_freqs,
+                                           run=run, feature='SSVEP')] = run_SSVEP_power
+
+    return secondary_power_features
+
+# # Connectivity test idea (2)
+#   For every (flicker frequency x block), only using occipitotemporal channels,
+#   calculate t-tests between PLI during the stimulation vs. the average rest epochs' PLI.
+#   Then correlate the t-test statistic with the questionnaire ratings.
+#   Results would show how deviations from normal connectivity in V1, V4, V5 correspond to changes in subjective
+#   effects. This also takes nice advantage of PLI's theoretic elimination of volume conduction, allowing us to
+#   assume independence of channel pair connections.
+
+def calc_PLI_dist(flicker_con_measures, rest_con_measures):
+    """
+    Calculates PLI distance measures {mean difference, parametric/non-parametric test statistcs}
+        between rest and flicker epochs
+    :param flicker_con_measures: (xarray) of flicker connectivity measures under dim ['con_method']
+     with coords ['chan_1', 'chan_2', 'flicker_freq', 'subject', 'con_method', 'run']
+    :param rest_con_measures: (xarray) of rest connectivity measures with same specifications
+    :return: (dataframe) with distance measures as columns
+    """
+
+    # prepare connectivity xarrays for analysis
+    try:  # drop events channel
+        flicker_con_measures = flicker_con_measures.drop_sel(dict(chan_1='Status', chan_2='Status'))
+    except KeyError:
+        pass
+    flicker_pli = flicker_con_measures.loc[dict(con_method='pli')]  # connectivity during flicker
+    flicker_pli.name = 'flicker_pli'
+    flicker_pli = flicker_pli.assign_coords(dict(con_method='flicker_pli'))
+
+    try:  # drop events channel
+        rest_con_measures = rest_con_measures.drop_sel(dict(chan_1='Status', chan_2='Status'))
+    except KeyError:
+        pass
+    rest_pli = rest_con_measures.loc[dict(con_method='pli')]  # connectivity at rest
+    rest_pli.name = 'rest_pli'
+    rest_pli = rest_pli.assign_coords(dict(con_method='rest_pli'))
+
+    pli = xr.concat([rest_pli, flicker_pli], 'con_method')  # concatenate rest_pli and flicker_pli
+
+    ot_chs = np.hstack([v1_chs, v4_chs, v5_chs])  # occipitotemporal channels in lower visual "what" stream
+    # not_chs = np.array([x for x in flicker_pli.chan_1.data if x not in ot_chs])  # non-occipitotemporal channels
+    ot_tril = np.tril_indices(len(ot_chs), -1)  # lower triangle indices
+
+    # test normality of connectivity in all (flicker frequency x run)
+    df_pli = pli.loc[
+        dict(chan_1=ot_chs[ot_tril[0]], chan_2=ot_chs[ot_tril[1]])].to_dataframe()  # TODO: fix indexing of lower tri
+    df_pli.rename(columns={'rest_pli': 'pli'}, inplace=True)
+    df_pli_long = df_pli.copy(deep=True).reset_index()
+
+    # calculate distance between connectivity during and after stimulation
+    group = ['flicker_freq', 'run', 'subject']  # group by these dimensions
+    pli_dist = df_pli.loc['flicker_pli'].groupby(group).mean() - df_pli.loc['rest_pli'].groupby(group).mean()
+    pli_dist.rename(columns={'pli': 'mean_diff'}, inplace=True)
+
+    pli_dist['test_stat'] = np.ones(len(pli_dist)) * np.nan  # adding new column for stats tests
+
+    # for each combination of (flicker_freq x run) determine distance during vs. after with stats test
+    pli_normality = df_pli.groupby([*group, 'con_method']).apply(normality)
+
+    for subject in pli.subject.data:
+        for flicker_freq in pli.flicker_freq.data:
+            for run in pli.run.data:
+                temp = df_pli_long.loc[(df_pli_long.flicker_freq == flicker_freq) & (df_pli_long.run == run) &
+                                       (df_pli_long.subject == subject)]
+
+                if bool(pli_normality.mean(axis=0)['normal']):  # perform parametric tests
+                    t = ttest(temp.loc[temp.con_method == 'flicker_pli']['pli'],
+                              temp.loc[temp.con_method == 'rest_pli']['pli'])
+                    pli_dist.loc[(flicker_freq, run)]['test_stat'] = float(t['T'])  # test statistic
+
+                else:  # perform non-parametric tests
+                    W = wilcoxon(temp.loc[temp.con_method == 'flicker_pli']['pli'],
+                                 temp.loc[temp.con_method == 'rest_pli']['pli'])
+                    pli_dist.loc[(flicker_freq, run)]['test_stat'] = float(W['W-val'])  # test statistic
+
+    r, p = pearsonr(pli_dist['mean_diff'], pli_dist['test_stat'])  # correlation between distance measures
+
+    print(f"Correlation between calculated test statistic and mean difference: "
+          f"{r:.2}, p = {p:.2}")  # note t-test, but not Wilcoxon correlated with mean.
+
+    return pli_dist
+

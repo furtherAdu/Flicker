@@ -2,13 +2,13 @@
 
 from utils.mne_funcs import read_eeg
 from utils.st_adjudication_funcs import compile_all_session_info, discretize_into_events, identify_resting_alpha
-from utils.setup_info import ID_to_name, event_dict, len_events, hcutoff, lcutoff, fft_step, op_chs, \
+from utils.setup_info import ID_to_name, event_dict, len_events, op_chs, \
     bdf_home, sub_IDs, ds_hz, fft_step
 from utils.helper_funcs import save_obj, load_obj
 import os
 
-if os.path.isfile('data/subs_dict_psds_alpha.pkl'):
-    subs_dict = load_obj('data/subs_dict_psds_alpha.pkl')
+if os.path.isfile('data/subs_dict.pkl'):
+    subs_dict = load_obj('data/subs_dict.pkl')
 else:
     subs_dict = compile_all_session_info()
 
@@ -38,4 +38,4 @@ for sub_ID in sub_IDs:  # sub_IDs:
     print(subs_dict[name]["r_alpha"])
 
 # save sub_dicts
-save_obj(subs_dict, 'data/subs_dict_psds_alpha.pkl')
+save_obj(subs_dict, 'data/subs_dict.pkl')

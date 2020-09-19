@@ -14,12 +14,12 @@ import matplotlib.pyplot as plt
 import os
 
 # load the master subject dictionary
-if os.path.isfile('data/subs_dict_psds_alpha.pkl'):
-    subs_dict = load_obj('data/subs_dict_psds_alpha.pkl')
+if os.path.isfile('data/subs_dict.pkl'):
+    subs_dict = load_obj('data/subs_dict.pkl')
 else:
     print('running resting_alpha.py')
     from analysis import resting_alpha  # run resting alpha analysis
-    subs_dict = load_obj('data/subs_dict_psds_alpha.pkl')
+    subs_dict = load_obj('data/subs_dict.pkl')
 
 
 def calc_SSVEP(subs_dict, SSVEP_band=(5, 15)):
@@ -42,7 +42,6 @@ def calc_SSVEP(subs_dict, SSVEP_band=(5, 15)):
                                                   calc_method='multitaper', epoch_length=flick_on_bounds[1])
 
          # TODO: interpolation to freqs == np.arange(2,45+.1,.1)
-
         # determining the frequencies matching to dimension in flicker_psd
         flicker_freqs = np.array([x for x in block_order if type(x) != str])
         mne_ff = np.array([float(list(event_dict.keys())[list(event_dict.values()).index(x)][len('flick')+1:])
@@ -113,7 +112,7 @@ def plot_PSDs_per_flicker_freq(subs_dict):
 print('calculating SSVEP...')
 subs_dict = calc_SSVEP(subs_dict, SSVEP_band)
 print('saving subs_dict with SSVEP data...')
-save_obj(subs_dict, 'data/subs_dict_psds_alpha_SSVEP.pkl')
+save_obj(subs_dict, 'data/subs_dict.pkl')
 
 # plot_PSDs_per_flicker_freq(subs_dict)
 
